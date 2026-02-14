@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { motion, useSpring, useTransform, useInView } from 'framer-motion';
+import { motion, useSpring, useTransform, useInView, useScroll } from 'framer-motion';
 
 const StatNumber = ({ value, suffix = "" }: { value: number, suffix?: string }) => {
   const spring = useSpring(0, { mass: 0.8, stiffness: 75, damping: 15 });
@@ -16,6 +16,45 @@ const StatNumber = ({ value, suffix = "" }: { value: number, suffix?: string }) 
 
   return <motion.span ref={ref} className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tighter text-white">{display}</motion.span>;
 };
+
+const Hypercube = () => {
+    const { scrollYProgress } = useScroll();
+    const rotate = useTransform(scrollYProgress, [0, 1], [0, 360]);
+    const scale = useTransform(scrollYProgress, [0.5, 0.8], [0.8, 1.2]);
+
+    return (
+        <div className="absolute top-1/2 right-[-100px] md:right-0 -translate-y-1/2 w-[300px] h-[300px] md:w-[500px] md:h-[500px] perspective-[1000px] pointer-events-none z-0 opacity-20 md:opacity-30">
+             <motion.div 
+                style={{ rotateY: rotate, rotateX: rotate, scale }}
+                className="relative w-full h-full transform-style-3d"
+             >
+                {/* Outer Cube */}
+                <div className="absolute inset-0 border border-indigo-500/30 transform-style-3d">
+                    <div className="absolute inset-0 border border-indigo-500/30 translate-z-[100px]" />
+                    <div className="absolute inset-0 border border-indigo-500/30 translate-z-[-100px]" />
+                    <div className="absolute inset-0 border border-indigo-500/30 rotate-y-90 translate-z-[100px]" />
+                    <div className="absolute inset-0 border border-indigo-500/30 rotate-y-90 translate-z-[-100px]" />
+                    <div className="absolute inset-0 border border-indigo-500/30 rotate-x-90 translate-z-[100px]" />
+                    <div className="absolute inset-0 border border-indigo-500/30 rotate-x-90 translate-z-[-100px]" />
+                </div>
+                
+                 {/* Inner Cube */}
+                 <motion.div 
+                    animate={{ rotateY: 360, rotateZ: 360 }}
+                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                    className="absolute top-1/4 left-1/4 w-1/2 h-1/2 border border-white/20 transform-style-3d"
+                 >
+                    <div className="absolute inset-0 border border-white/20 translate-z-[50px]" />
+                    <div className="absolute inset-0 border border-white/20 translate-z-[-50px]" />
+                    <div className="absolute inset-0 border border-white/20 rotate-y-90 translate-z-[50px]" />
+                    <div className="absolute inset-0 border border-white/20 rotate-y-90 translate-z-[-50px]" />
+                    <div className="absolute inset-0 border border-white/20 rotate-x-90 translate-z-[50px]" />
+                    <div className="absolute inset-0 border border-white/20 rotate-x-90 translate-z-[-50px]" />
+                 </motion.div>
+             </motion.div>
+        </div>
+    )
+}
 
 const researchAreas = [
   {
@@ -43,8 +82,10 @@ const researchAreas = [
 
 const Research: React.FC = () => {
   return (
-    <section id="research" className="relative py-16 md:py-24 border-t border-white/5">
-      <div className="flex flex-col md:flex-row gap-8 md:gap-12 mb-12 md:mb-20">
+    <section id="research" className="relative py-16 md:py-24 border-t border-white/5 overflow-hidden">
+      <Hypercube />
+
+      <div className="relative z-10 flex flex-col md:flex-row gap-8 md:gap-12 mb-12 md:mb-20">
         <div className="flex-1">
             <h2 className="text-xs md:text-sm font-mono tracking-widest text-indigo-500 uppercase mb-3 md:mb-4">Laboratory Findings</h2>
             <div className="text-3xl md:text-5xl font-bold tracking-tight">
@@ -58,7 +99,7 @@ const Research: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/10 border border-white/10 overflow-hidden rounded-xl md:rounded-2xl">
+      <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-px bg-white/10 border border-white/10 overflow-hidden rounded-xl md:rounded-2xl">
         {researchAreas.map((area, i) => (
           <div key={i} className="bg-black p-6 md:p-10 group relative overflow-hidden">
              

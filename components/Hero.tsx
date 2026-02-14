@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState } from 'react';
-import { motion, useSpring, useMotionValue, useTransform, AnimatePresence, useScroll } from 'framer-motion';
+import { motion, useSpring, useMotionValue, useTransform, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import { X, ArrowRight, Zap } from 'lucide-react';
 
 // --- Text Scramble Hook ---
@@ -70,6 +70,8 @@ const MagnetButton: React.FC<{ children?: React.ReactNode; onClick?: () => void 
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
       style={{ x: springX, y: springY }}
+      animate={isTouch ? { scale: [1, 1.05, 1], boxShadow: ["0 0 0px rgba(255,255,255,0)", "0 0 20px rgba(99, 102, 241, 0.3)", "0 0 0px rgba(255,255,255,0)"] } : {}}
+      transition={isTouch ? { duration: 2, repeat: Infinity, ease: "easeInOut" } : {}}
       className="group relative px-8 md:px-12 py-4 md:py-5 rounded-sm bg-white text-black font-bold text-[10px] md:text-xs tracking-widest uppercase overflow-hidden transition-all duration-300 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)] active:scale-95"
     >
       <div className="relative z-10 flex items-center gap-3 md:gap-4">
@@ -79,6 +81,100 @@ const MagnetButton: React.FC<{ children?: React.ReactNode; onClick?: () => void 
       <div className="absolute inset-0 bg-indigo-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left mix-blend-difference" />
     </motion.button>
   );
+};
+
+// --- Glitch Mouse Trail ---
+const GlitchMouseTrail = () => {
+    const x = useMotionValue(0);
+    const y = useMotionValue(0);
+    const [isHovering, setIsHovering] = useState(false);
+    const [opacity, setOpacity] = useState(1);
+    const { scrollY } = useScroll();
+    
+    // Smooth springs for trails
+    const springX = useSpring(x, { stiffness: 300, damping: 25 });
+    const springY = useSpring(y, { stiffness: 300, damping: 25 });
+    
+    const ghostX = useSpring(x, { stiffness: 120, damping: 20 });
+    const ghostY = useSpring(y, { stiffness: 120, damping: 20 });
+
+    const ghostX2 = useSpring(x, { stiffness: 60, damping: 25 });
+    const ghostY2 = useSpring(y, { stiffness: 60, damping: 25 });
+
+    // Fade out when scrolling past hero
+    useMotionValueEvent(scrollY, "change", (latest) => {
+        const h = window.innerHeight;
+        if (latest > h) setOpacity(0);
+        else setOpacity(1 - latest / h);
+    });
+
+    useEffect(() => {
+        const handleMove = (e: MouseEvent) => {
+            x.set(e.clientX);
+            y.set(e.clientY);
+            
+            const target = e.target as HTMLElement;
+            const isInteractive = target.closest('button, a, input, [role="button"]') !== null;
+            setIsHovering(isInteractive);
+        };
+        window.addEventListener('mousemove', handleMove);
+        return () => window.removeEventListener('mousemove', handleMove);
+    }, [x, y]);
+
+    if (typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches) return null;
+    if (opacity <= 0.05) return null;
+
+    return (
+        <motion.div 
+            style={{ opacity }} 
+            className="pointer-events-none fixed inset-0 z-[100] overflow-hidden mix-blend-exclusion"
+        >
+            {/* Primary Crosshair */}
+            <motion.div 
+                style={{ x: springX, y: springY }}
+                className="absolute top-0 left-0 -ml-3 -mt-3 w-6 h-6 border-[0.5px] border-indigo-400/60 flex items-center justify-center"
+            >
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1px] h-full bg-indigo-500/20" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[1px] bg-indigo-500/20" />
+            </motion.div>
+
+            {/* Glitch Ghost 1 (Cyan) */}
+            <motion.div 
+                style={{ x: ghostX, y: ghostY }}
+                className="absolute top-0 left-0 -ml-1.5 -mt-1.5 w-3 h-3 bg-cyan-400/40 blur-[1px]"
+                animate={{ 
+                    opacity: [0.2, 0.4, 0.2],
+                    x: [0, 2, -2, 0] 
+                }}
+                transition={{
+                    x: { duration: 0.1, repeat: Infinity, repeatType: "mirror", repeatDelay: Math.random() * 2 }
+                }}
+            />
+
+            {/* Glitch Ghost 2 (Magenta) - Laggy */}
+            <motion.div 
+                style={{ x: ghostX2, y: ghostY2 }}
+                className="absolute top-0 left-0 -ml-4 -mt-4 w-8 h-8 border border-fuchsia-500/30"
+            >
+                 <div className="absolute top-0 right-0 w-1 h-1 bg-fuchsia-500/60" />
+                 <div className="absolute bottom-0 left-0 w-1 h-1 bg-fuchsia-500/60" />
+            </motion.div>
+            
+            {/* Interactive Highlight Ring */}
+            <AnimatePresence>
+                {isHovering && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1.2, borderColor: "rgba(255,255,255,0.8)" }}
+                        exit={{ opacity: 0, scale: 0.5 }}
+                        style={{ x: springX, y: springY }}
+                        className="absolute top-0 left-0 -ml-5 -mt-5 w-10 h-10 border border-white/40 rounded-full bg-white/5 backdrop-blur-[1px]"
+                        transition={{ duration: 0.2 }}
+                    />
+                )}
+            </AnimatePresence>
+        </motion.div>
+    );
 };
 
 // --- Particle Field (Canvas) ---
@@ -116,14 +212,14 @@ const ParticleField = () => {
 
     // Reduced particle count for better mobile performance
     const isMobile = width < 768;
-    const particleCount = isMobile ? 12 : 40; 
+    const particleCount = isMobile ? 25 : 50; // Increased mobile count slightly
     
     const particles = Array.from({ length: particleCount }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      vx: (Math.random() - 0.5) * 0.05, 
-      vy: (Math.random() - 0.5) * 0.05,
-      size: Math.random() * (isMobile ? 0.8 : 1.2) + 0.3,
+      vx: (Math.random() - 0.5) * (isMobile ? 0.15 : 0.05), // Faster on mobile to compensate for lack of interaction
+      vy: (Math.random() - 0.5) * (isMobile ? 0.15 : 0.05),
+      size: Math.random() * (isMobile ? 1.5 : 1.2) + 0.3,
       alpha: Math.random() * 0.2 + 0.1,
       depth: Math.random() * 0.4 + 0.1
     }));
@@ -141,7 +237,7 @@ const ParticleField = () => {
         if (p.y > height) p.y = 0;
 
         // Less parallax on mobile to save calc
-        const moveFactor = isMobile ? 10 : 30;
+        const moveFactor = isMobile ? 5 : 30;
         const offsetX = -(mouseRef.current.x * moveFactor * p.depth);
         const offsetY = -(mouseRef.current.y * moveFactor * p.depth);
 
@@ -167,44 +263,55 @@ const ParticleField = () => {
 
 const BackgroundVideo = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const { scrollY } = useScroll();
   
-  // Simplified effects for mobile to prevent painting heavy filters
-  const opacity = useTransform(scrollY, [0, 800], [0.35, 0]);
-  const scale = useTransform(scrollY, [0, 1000], [1, 1.1]);
-  // Use opacity fade instead of blur on very small screens if needed, 
-  // but here we just clamp the blur value
-  const blur = useTransform(scrollY, [0, 800], ["blur(1px)", "blur(8px)"]);
-  const y = useTransform(scrollY, [0, 1000], [0, 150]); 
+  // Optimization: Removed blur filter on scroll (expensive repaint).
+  // Using opacity and scale transforms which are GPU accelerated.
+  const opacity = useTransform(scrollY, [0, 800], [0.4, 0]); 
+  const scale = useTransform(scrollY, [0, 1000], [1.05, 1.15]);
+  const y = useTransform(scrollY, [0, 1000], [0, 200]); 
 
   useEffect(() => {
     if (videoRef.current) {
-        videoRef.current.playbackRate = 0.7;
+        // Slowing down playback for a more cinematic, less distracting feel
+        videoRef.current.playbackRate = 0.6;
     }
   }, []);
 
+  const onLoadedData = () => {
+    setIsVideoLoaded(true);
+  };
+
   return (
     <motion.div 
-        className="absolute inset-0 w-full h-full overflow-hidden z-0 bg-[#010102]"
-        style={{ opacity, scale, y }}
+        className="absolute inset-0 w-full h-full overflow-hidden z-0 bg-[#020205]"
+        style={{ opacity, y }}
     >
+      {/* Background base to prevent white flashes */}
+      <div className="absolute inset-0 bg-black z-0" />
+      
       <motion.video
         ref={videoRef}
         autoPlay
         loop
         muted
         playsInline
-        className="w-full h-full object-cover mix-blend-screen pointer-events-none will-change-transform"
-        style={{ filter: blur }}
+        onLoadedData={onLoadedData}
+        className={`w-full h-full object-cover transition-opacity duration-1000 ${isVideoLoaded ? 'opacity-60' : 'opacity-0'}`}
+        style={{ scale }}
         poster="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=40&w=480&auto=format&fit=crop"
       >
         <source src="https://assets.mixkit.co/videos/preview/mixkit-network-connection-background-3049-large.mp4" type="video/mp4" />
       </motion.video>
       
-      <div className="absolute inset-0 bg-indigo-950/50 mix-blend-multiply z-10" />
-      <div className="absolute inset-0 bg-black/40 mix-blend-overlay z-10" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#000000_120%)] opacity-90 z-20" />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black z-20" />
+      {/* Refined Overlays for better depth and text contrast */}
+      <div className="absolute inset-0 bg-indigo-950/20 mix-blend-overlay z-10" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/80 z-20" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#000000_110%)] z-20" />
+      
+      {/* Scanline texture for tech aesthetic */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none z-20" />
     </motion.div>
   );
 };
@@ -240,6 +347,18 @@ const Letter = ({ char, index, total, mouseX, mouseY, shouldAnimate }: any) => {
                 y: shouldAnimate ? y : 0,
                 z: shouldAnimate ? z : 0,
             }}
+            // Mobile ambient animation if interactions are disabled
+            animate={!shouldAnimate ? {
+                y: [0, -4, 0],
+                opacity: [1, 0.8, 1],
+                z: [0, 20, 0]
+            } : {}}
+            transition={!shouldAnimate ? {
+                duration: 4,
+                repeat: Infinity,
+                delay: index * 0.1,
+                ease: "easeInOut"
+            } : {}}
             className={`relative inline-block transition-colors duration-700 ${index > 4 ? 'text-gray-500 group-hover:text-indigo-400' : 'text-white'}`}
         >
             {shouldAnimate && (
@@ -275,11 +394,12 @@ const ThreeDText = ({ mouseX, mouseY }: { mouseX: any, mouseY: any }) => {
         return () => window.removeEventListener('resize', check);
     }, []);
 
-    // Conditional transformations
+    // Conditional transformations - Mouse Reactive on Desktop
     const rotateX = useSpring(useTransform(mouseY, [0, 1], [8, -8]), { stiffness: 60, damping: 20 });
     const rotateY = useSpring(useTransform(mouseX, [0, 1], [-8, 8]), { stiffness: 60, damping: 20 });
     
-    // Flat values for mobile
+    // Auto transformations - Ambient on Mobile
+    // We pass 0 here, but the Letters themselves handle auto-animation when shouldAnimate is false
     const flatRotate = 0;
 
     return (
@@ -314,20 +434,45 @@ const ThreeDText = ({ mouseX, mouseY }: { mouseX: any, mouseY: any }) => {
     )
 }
 
+const NeuralGyroscope = () => {
+    return (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120vw] h-[120vw] md:w-[800px] md:h-[800px] -z-10 opacity-10 pointer-events-none perspective-[1000px] flex items-center justify-center">
+            {/* Ring 1 */}
+            <motion.div 
+                animate={{ rotateX: [0, 360], rotateY: [0, 180] }}
+                transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+                className="absolute w-[80%] h-[80%] border border-indigo-400/50 rounded-full"
+            />
+            {/* Ring 2 */}
+            <motion.div 
+                animate={{ rotateX: [0, -360], rotateZ: [0, 90] }}
+                transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+                className="absolute w-[60%] h-[60%] border border-indigo-500/30 rounded-full"
+            />
+             {/* Ring 3 */}
+             <motion.div 
+                animate={{ rotateY: [0, 360], rotateZ: [0, -45] }}
+                transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+                className="absolute w-[40%] h-[40%] border border-white/20 rounded-full border-dashed"
+            />
+        </div>
+    )
+}
+
 const HoloCard = ({ label, subtext, src, className, mouseX, mouseY, depth = 1 }: any) => {
   const rotateX = useSpring(useTransform(mouseY, [0, 1], [10 * depth, -10 * depth]), { stiffness: 50, damping: 20 });
   const rotateY = useSpring(useTransform(mouseX, [0, 1], [-10 * depth, 10 * depth]), { stiffness: 50, damping: 20 });
   const x = useTransform(mouseX, [0, 1], [-30 * depth, 30 * depth]);
   const y = useTransform(mouseY, [0, 1], [-30 * depth, 30 * depth]);
 
-  // Hide entirely on mobile (via class hidden lg:flex) handled in parent props
+  // Hide entirely on very small screens, show on md+
   return (
     <motion.div
       style={{ rotateX, rotateY, x, y, perspective: 1200 }}
       initial={{ opacity: 0, scale: 0.7 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 2, ease: "easeOut" }}
-      className={`absolute z-10 hidden lg:flex flex-col gap-2 pointer-events-none will-change-transform ${className}`}
+      className={`absolute z-10 hidden md:flex flex-col gap-2 pointer-events-none will-change-transform ${className}`}
     >
         <div className="flex items-center gap-2 opacity-40 pl-2">
             <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
@@ -362,8 +507,10 @@ const Hero: React.FC = () => {
 
   return (
     <section className="relative h-screen w-full flex flex-col items-center justify-center overflow-hidden bg-black">
+        <GlitchMouseTrail />
         <BackgroundVideo />
         <CyberGrid />
+        <NeuralGyroscope />
         <ParticleField />
 
         <div className="absolute top-0 left-0 w-full h-full z-[2] pointer-events-none">
@@ -376,14 +523,14 @@ const Hero: React.FC = () => {
               label="SYNAPTIC_ARRAY // RX-9"
               subtext="Weights: Stable"
               src="https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-a-network-of-dots-and-lines-42458-large.mp4"
-              className="top-[20%] left-[5%] w-[220px] h-[140px]"
+              className="top-[15%] left-[5%] w-[180px] h-[100px] lg:top-[20%] lg:left-[5%] lg:w-[220px] lg:h-[140px]"
               mouseX={mouseX} mouseY={mouseY} depth={0.6}
             />
             <HoloCard 
               label="COGNITIVE_TRANSFORM"
               subtext="Inf: 0.4ms"
               src="https://assets.mixkit.co/videos/preview/mixkit-abstract-white-and-blue-data-visualization-conduit-44445-large.mp4"
-              className="bottom-[25%] right-[6%] w-[250px] h-[160px]"
+              className="bottom-[20%] right-[5%] w-[200px] h-[120px] lg:bottom-[25%] lg:right-[6%] lg:w-[250px] lg:h-[160px]"
               mouseX={mouseX} mouseY={mouseY} depth={0.9}
             />
         </div>
