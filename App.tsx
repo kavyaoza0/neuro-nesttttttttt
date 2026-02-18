@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import WhatItDoes from './components/WhatItDoes';
@@ -8,7 +8,7 @@ import Research from './components/Research';
 import WhyItWorks from './components/WhyItWorks';
 import UseCases from './components/UseCases';
 import CTAFooter from './components/CTAFooter';
-import { motion, useMotionValue, useSpring } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 const SectionWrapper = ({ children, delay = 0, className = "" }: { children?: React.ReactNode; delay?: number; className?: string }) => (
   <motion.div
@@ -22,67 +22,9 @@ const SectionWrapper = ({ children, delay = 0, className = "" }: { children?: Re
   </motion.div>
 );
 
-const Cursor = () => {
-  const mouseX = useMotionValue(-100);
-  const mouseY = useMotionValue(-100);
-  const ringX = useSpring(mouseX, { stiffness: 300, damping: 30 });
-  const ringY = useSpring(mouseY, { stiffness: 300, damping: 30 });
-  const [isHovered, setIsHovered] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-
-    const moveMouse = (e: MouseEvent) => {
-      // Direct updates are faster than react state for high freq events
-      mouseX.set(e.clientX);
-      mouseY.set(e.clientY);
-    };
-
-    const handleOver = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('button, a, .interactive-card, input')) {
-        setIsHovered(true);
-      } else {
-        setIsHovered(false);
-      }
-    };
-
-    window.addEventListener('mousemove', moveMouse, { passive: true });
-    window.addEventListener('mouseover', handleOver);
-    return () => {
-      window.removeEventListener('resize', checkMobile);
-      window.removeEventListener('mousemove', moveMouse);
-      window.removeEventListener('mouseover', handleOver);
-    };
-  }, [mouseX, mouseY]);
-
-  if (isMobile) return null;
-
-  return (
-    <motion.div
-      className="fixed top-0 left-0 w-6 h-6 border border-white/80 rounded-full pointer-events-none z-[9999] mix-blend-exclusion flex items-center justify-center will-change-transform"
-      style={{
-        x: ringX,
-        y: ringY,
-        translateX: '-50%',
-        translateY: '-50%',
-      }}
-      animate={{
-        scale: isHovered ? 2.5 : 1,
-        backgroundColor: isHovered ? 'rgba(255,255,255,1)' : 'transparent',
-      }}
-      transition={{ duration: 0.2 }}
-    />
-  );
-};
-
 const App = () => {
   return (
     <div className="relative bg-black text-white selection:bg-indigo-500/30 overflow-x-hidden">
-      <Cursor />
       <Navbar />
 
       <div className="fixed inset-0 z-0 h-screen w-full">
